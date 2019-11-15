@@ -1,31 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal" android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:orientation="horizontal">
     <FrameLayout
-        android:id="@+id/bookList"
-        android:layout_width="205dp"
-        android:layout_height="match_parent"
-        android:layout_weight=".3" />
-
-    <FrameLayout
-        android:id="@+id/fragment_bookDetails"
+        android:id="@+id/container_1"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight=".7">
+        android:layout_weight=".4">
 
         <TextView
-            android:id="@+id/textView"
+            android:id="@+id/textView4"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:text="TextView" />
-
-        <TextView
-            android:id="@+id/texts"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="69dp"
             android:text="TextView" />
     </FrameLayout>
+
+    <ImageView
+        android:id="@+id/container_2"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight=".6" />
 
 </LinearLayout>

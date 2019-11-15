@@ -1,105 +1,66 @@
 package edu.temple.bookcase;
 
 import android.os.Bundle;
-
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
+import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.fragment.app.Fragment;
+
+import com.squareup.picasso.Picasso;
 
 public class BookDetails extends Fragment {
 
-   static TextView textView;
-    String book = "";
-    static   Bundle bundle;
+    private static final String BOOK_KEY = "bookKey";
+    private Book book;
 
-    public static final String BOOK_KEY = "book";
+    ImageView imageView;
+    Parcelable[] bookObjects;
+    TextView textView;
 
-    public BookDetails() {
-        // Required empty public constructor
+    public BookDetails() {}
+
+    public static BookDetails newInstance(Book bookObject) {
+        BookDetails fragment = new BookDetails();
+        Bundle args = new Bundle();
+        args.putParcelable(BOOK_KEY, bookObject);
+        fragment.setArguments(args);
+        return fragment;
     }
 
-    public static BookDetails newInstance (String book) {
-        BookDetails bookDetails = new BookDetails();
-
-       bundle = new Bundle();
-        bundle.putString(BOOK_KEY, book);
-
-        bookDetails.setArguments(bundle);
-
-        return bookDetails;
-    }
 
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (getArguments() != null)
-            book = getArguments().getString(BOOK_KEY);
-
+        if (getArguments() != null) {
+            bookObjects = getArguments().getParcelableArray(BOOK_KEY);
+        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-
         View v = inflater.inflate(R.layout.fragment_book_details, container, false);
-        textView = v.findViewById(R.id.textView);
+        imageView = v.findViewById(R.id.container_2);
 
-        change(book);
+         textView = v.findViewById(R.id.titleTextView);
+        if (book != null) {
+            changeBook(book);
+        }
 
         return v;
     }
 
-    public static void changeBook(String book) {
-        change(book);
+    public void changeBook(Book b) {
+
+        Picasso.get().load(b.coverURL).into(imageView);
+        String t= b.title +"/n"+b.author+"/n"+b.published;
+        textView.setText(t);
+
     }
 
-    private static void change(String book) {
-
-             switch (book) {
-
-                 case "Don Quixote":
-                     textView.setText("Don Quixote");
-                     ;
-                     break;
-                 case "The Great Gatsby":
-                     textView.setText("The Great Gatsby");
-                     break;
-                 case "Moby Dick":
-                     textView.setText("Moby Dick");
-                     break;
-                 case "War and Peace":
-                     textView.setText("War and Peace");
-                     break;
-                 case "Hamlet":
-                     textView.setText("Hamlet");
-                     break;
-                 case "The Odyssey":
-                     textView.setText("The Odyssey");
-                     break;
-                 case " The Catcher in the Rye":
-                     textView.setText(" The Catcher in the Rye");
-                     break;
-                 case "Pride and Prejudice":
-                     textView.setText("Pride and Prejudice");
-                     break;
-                 case "Catch-22":
-                     textView.setText("Catch-22");
-                     break;
-                 case "Gulliver's Travels":
-                     textView.setText("Gulliver's Travels");
-                     break;
-
-
-             }
-    }
-
-    public Bundle getBundle() {
-        return bundle;
-    }
 }
+
