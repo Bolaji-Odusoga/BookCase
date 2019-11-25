@@ -6,12 +6,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentStatePagerAdapter;
+import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
-
-import java.util.ArrayList;
 
 
 
@@ -19,15 +19,17 @@ public class ViewPage extends Fragment {
     private static final String BOOKLIST_KEY = "booklist";
 
     ViewPager viewPager;
-     private  Book viewPageBook;
+    private Library bookList;
+    BookListFragment.BookSelectedInterface parentActivity;
 
 
-    public ViewPage() {}
+    public ViewPage() {
+    }
 
-    public static ViewPage newInstance(Book bookObject) {
-        ViewPage fragment = new ViewPage();
+    public static ViewPageCollectionAdapter newInstance(Library bookList) {
+        ViewPageCollectionAdapter fragment = new ViewPageCollectionAdapter();
         Bundle args = new Bundle();
-        args.putParcelable(BOOKLIST_KEY,bookObject);
+        args.putParcelable(BOOKLIST_KEY, bookList);
         fragment.setArguments(args);
         return fragment;
     }
@@ -36,7 +38,7 @@ public class ViewPage extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            viewPageBook = getArguments().getParcelable(BOOKLIST_KEY);
+            bookList = getArguments().getParcelable(BOOKLIST_KEY);
         }
     }
 
@@ -47,33 +49,46 @@ public class ViewPage extends Fragment {
 
         viewPager = v.findViewById(R.id.viewPager);
 
-        viewPager.setAdapter(new BookFragmentAdapter(getChildFragmentManager(), viewPageBook));
+        viewPager.setAdapter(new BookFragmentAdapter(getChildFragmentManager(), bookList));
 
         return v;
     }
 
 
+    public Library getBooks() {
+        return bookList;
+    }
+
+
+    public void setBooks(Library books) {
+        bookList = books;
+        viewPager.getAdapter().notifyDataSetChanged();
+    }
+
     class BookFragmentAdapter extends FragmentStatePagerAdapter {
 
+        Library bookList;
 
-        private  Book viewPageBook;
-        public BookFragmentAdapter(FragmentManager fm, Book bookObject) {
+        public BookFragmentAdapter(FragmentManager fm, Library bookList) {
             super(fm);
-            this.viewPageBook = bookObject;
+            this.bookList = bookList;
         }
 
         @Override
         public Fragment getItem(int i) {
-            return BookDetails.newInstance(viewPageBook);
+            return BookDetails.newInstance(bookList.getBookAt(i));
         }
 
         @Override
         public int getCount() {
-           // return viewPageBook.;
-            return 0;
+            return bookList.size();
+        }
+
+        @Override
+        public int getItemPosition(@NonNull Object object) {
+            return PagerAdapter.POSITION_NONE;
         }
     }
-
 }
 
 

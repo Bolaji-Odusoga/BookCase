@@ -3,6 +3,7 @@ package edu.temple.bookcase;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -13,98 +14,83 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentStatePagerAdapter;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.viewpager.widget.ViewPager;
 
 import com.squareup.picasso.Picasso;
 
-public class ViewPageCollectionAdapter extends FragmentStatePagerAdapter implements ListAdapter {
+public class ViewPageCollectionAdapter extends Fragment {
+
+    private static final String BOOKLIST_KEY = "booklist";
+
+    ViewPager viewPager;
+    private Library bookList;
+    BookListFragment.BookSelectedInterface parentActivity;
 
 
-    Book bookListObject;
-    public ViewPageCollectionAdapter(@NonNull FragmentManager fm, Book bookListObject) {
-        super(fm);
-        this.bookListObject=bookListObject;
+    public ViewPageCollectionAdapter() {
     }
 
-    @NonNull
+    public static ViewPageCollectionAdapter newInstance(Library bookList) {
+        ViewPageCollectionAdapter fragment = new ViewPageCollectionAdapter();
+        Bundle args = new Bundle();
+        args.putParcelable(BOOKLIST_KEY, bookList);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
-    public Fragment getItem(int position) {
-        ViewPage v = new ViewPage();
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            bookList = getArguments().getParcelable(BOOKLIST_KEY);
+        }
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.fragment_view_page, container, false);
+
+        viewPager = v.findViewById(R.id.viewPager);
+
+        viewPager.setAdapter(new BookFragmentAdapter(getChildFragmentManager(), bookList));
+
         return v;
     }
 
-    @Override
-    public long getItemId(int i) {
-        return 0;
+    public Library getBooks() {
+        return bookList;
     }
 
-    @Override
-    public boolean hasStableIds() {
-        return false;
+    public void setBooks(Library books) {
+        bookList = books;
+        viewPager.getAdapter().notifyDataSetChanged();
     }
 
-    @Override
-    public View getView(int i, View view, ViewGroup viewGroup) {
-        View v =view.findViewById(R.id.imageView);
+    class BookFragmentAdapter extends FragmentStatePagerAdapter {
 
+        Library bookList;
 
-        Picasso.get().load(bookListObject.coverURL).into((ImageView) v);
+        public BookFragmentAdapter(FragmentManager fm, Library bookList) {
+            super(fm);
+            this.bookList = bookList;
+        }
 
-        return null;
+        @Override
+        public Fragment getItem(int i) {
+            return BookDetails.newInstance(bookList.getBookAt(i));
+        }
+
+        @Override
+        public int getCount() {
+            return bookList.size();
+        }
+
+        @Override
+        public int getItemPosition(@NonNull Object object) {
+            return PagerAdapter.POSITION_NONE;
+        }
     }
 
-    @Override
-    public int getItemViewType(int i) {
-        return 0;
-    }
-
-    @Override
-    public int getViewTypeCount() {
-        return 0;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return false;
-    }
-
-    Context context;
-
-    @Override
-    public int getCount() {
-        return 0;
-    }
-
-    public int getItemPosition(@NonNull Object bookObject) {
-
-        return ViewPageCollectionAdapter.POSITION_NONE;
-    }
-
-    public void getContext(Context context) {
-        this.context = context;
-    }
-
-    @NonNull
-
-    public Fragment get(int position) {
-
-        ViewPage v = new ViewPage();
-        Bundle b = new Bundle();
-
-
-        // b.putString("message",book);
-        v.setArguments(b);
-        return v;
-    }
-
-    @Override
-    public boolean areAllItemsEnabled() {
-        return false;
-    }
-
-    @Override
-    public boolean isEnabled(int i) {
-        return false;
-    }
 }
-
-

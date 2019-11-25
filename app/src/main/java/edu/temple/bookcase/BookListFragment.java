@@ -1,6 +1,5 @@
 package edu.temple.bookcase;
 
-
 import android.content.Context;
 import android.os.Bundle;
 
@@ -8,29 +7,24 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.ImageView;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
 
 import androidx.fragment.app.Fragment;
 
-import com.squareup.picasso.Picasso;
-
-import java.util.ArrayList;
-
-public class BookListFragment extends Fragment {
+public class BookListFragment extends Fragment implements Displayable {
     private static final String BOOKLIST_KEY = "booklist";
 
     ListView listView;
-    private Book bookListObject;
+    private Library bookList;
     BookSelectedInterface parentActivity;
 
     public BookListFragment() {}
 
-    public static BookListFragment newInstance(Book bookObject) {
+    public static BookListFragment newInstance(Library bookList) {
         BookListFragment fragment = new BookListFragment();
         Bundle args = new Bundle();
-        args.putParcelable(BOOKLIST_KEY, bookObject);
+        args.putParcelable(BOOKLIST_KEY, bookList);
         fragment.setArguments(args);
         return fragment;
     }
@@ -39,7 +33,7 @@ public class BookListFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            bookListObject = getArguments().getParcelable(BOOKLIST_KEY);
+            bookList = getArguments().getParcelable(BOOKLIST_KEY);
         }
     }
 
@@ -61,25 +55,32 @@ public class BookListFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        final View layout = inflater.inflate(R.layout.fragment_booklist, container, false);
+        View layout = inflater.inflate(R.layout.fragment_booklist, container, false);
         listView = layout.findViewById(R.id.listView);
-        ViewPageCollectionAdapter vp = new ViewPageCollectionAdapter(getFragmentManager(),bookListObject);
-        listView.setAdapter(vp);
-         final ImageView imageView = layout.findViewById(R.id.container_2);
+        listView.setAdapter(new BookListAdapter((Context) parentActivity, bookList));
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                //parentActivity.bookSelected(Picasso.get().load(bookListObject.coverURL).into(imageView));
+                parentActivity.bookSelected(bookList.getBookAt(position));
             }
         });
 
         return layout;
     }
 
-    interface BookSelectedInterface {
-        void bookSelected( int i);
+    @Override
+    public Library getBooks() {
+        return bookList;
     }
 
+    @Override
+    public void setBooks(Library books) {
+        bookList = books;
+        ((BaseAdapter) listView.getAdapter()).notifyDataSetChanged();
+    }
+
+    interface BookSelectedInterface {
+        void bookSelected(Book book);
+    }
 }

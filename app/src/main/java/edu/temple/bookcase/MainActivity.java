@@ -1,12 +1,13 @@
 package edu.temple.bookcase;
 
-import android.os.AsyncTask;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.os.Parcel;
-import android.view.KeyEvent;
-import android.view.inputmethod.EditorInfo;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
 import android.widget.EditText;
-import android.widget.TextView;
 
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,16 +16,10 @@ import androidx.fragment.app.FragmentManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 
 
 public class MainActivity extends AppCompatActivity implements BookListFragment.BookSelectedInterface {
@@ -32,155 +27,165 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
     FragmentManager fm;
     BookDetails bookDetailsFragment;
     boolean singlePane;
+    Library library;
+    Fragment container1;
+        Fragment container2;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         fm = getSupportFragmentManager();
+        library = new Library();
+
+        // Check for fragments in both containers
+        container1 = fm.findFragmentById(R.id.container_1);
+        container2 = fm.findFragmentById(R.id.container_2);
 
         singlePane = findViewById(R.id.container_2) == null;
 
-        try {
-            separatesURLData();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (JSONException e) {
-            e.printStackTrace();
+        if (container1 == null) {
+            fetchBooks(null);
+        } else {
+            updateDisplay();
         }
 
-        //Collections.addAll(bookList, getResources().getStringArray(R.array.arrayList));
+        findViewById(R.id.searchButton).setOnClickListener(v -> fetchBooks(((EditText) findViewById(R.id.searchBox)).getText().toString()));
+    }
+    private void setDisplay() {
+        // If there are no fragments at all (first time starting activity)
 
-        // Check for fragments in both containers
+        if (singlePane) {
+            container1 = ViewPage.newInstance(library);
+            fm.beginTransaction()
+                    .add(R.id.container_1, container1)
+                    .commit();
+        } else {
+            container1 = BookListFragment.newInstance(library);
+            bookDetailsFragment = new BookDetails();
+            fm.beginTransaction()
+                    .add(R.id.container_1, container1)
+                    .add(R.id.container_2, bookDetailsFragment)
+                    .commit();
+        }
 
-        Fragment container1 = fm.findFragmentById(R.id.container_1);
-        Fragment container2 = fm.findFragmentById(R.id.container_2);
+    }
 
-
-        if (container1 == null) {
-
-            if (singlePane) {
-                fm.beginTransaction().add(R.id.container_1, ViewPage.newInstance(bk)).commit();
-            } else {
-                bookDetailsFragment = new BookDetails();
-                fm.beginTransaction().add(R.id.container_1, BookListFragment.newInstance(bk)).add(R.id.container_2, bookDetailsFragment).commit();
+    private void updateDisplay () {
+        Fragment tmpFragment = container1;;
+        library = ((Displayable) container1).getBooks();
+        if (singlePane) {
+            if (container1 instanceof BookListFragment) {
+                container1 = ViewPage.newInstance(library);
+                // If we have the wrong fragment for this configuration, remove it and add the correct one
+                fm.beginTransaction()
+                        .remove(tmpFragment)
+                        .add(R.id.container_1, container1)
+                        .commit();
             }
         } else {
-            // Fragments already exist (activity was restarted)
-            if (singlePane) {
-                if (container1 instanceof BookListFragment) {
-                    // If we have the wrong fragment for this configuration, remove it and add the correct one
-                    fm.beginTransaction().remove(container1).add(R.id.container_1, ViewPage.newInstance(bk)).commit();
-                }
-            } else {
-                if (container1 instanceof ViewPage) {
-                    fm.beginTransaction().remove(container1).add(R.id.container_1, BookListFragment.newInstance(bk)).commit();
-                }
-                if (container2 instanceof BookDetails)
-                    bookDetailsFragment = (BookDetails) container2;
-                else {
-                    bookDetailsFragment = new BookDetails();
-                    fm.beginTransaction().add(R.id.container_2, bookDetailsFragment).commit();
-                }
+            if (container1 instanceof ViewPage) {
+                container1 = BookListFragment.newInstance(library);
+                fm.beginTransaction()
+                        .remove(tmpFragment)
+                        .add(R.id.container_1, container1)
+                        .commit();
             }
-
-            bookDetailsFragment = (BookDetails) container2;
-
-        }
-
-        final EditText searchQuery = (EditText) findViewById(R.id.search_query);
-        searchQuery.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-            public boolean onEditorAction(TextView v, int actionId,
-                                          KeyEvent event) {
-                if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                    String searchData = searchQuery.getText().toString();
-                    showResults(searchData); //passing string to search in your database to your method
-                    return true;
-                }
-                return false;
-            }
-        });
-    }
-
-    private void showResults(String searchData) {
-
-       for(int i =0 ;i<b.size();i++) {
-           if (searchData.matches(b.get(i).title)){
-               //b.get(i).
-           }
-
-       }
-    }
-
-    class RetrieveFeedTask extends AsyncTask<String,Void,JSONObject> {
-
-
-        public  JSONArray readJsonFromUrl(String url) throws IOException, JSONException {
-            InputStream is = new URL(url).openStream();
-            try {
-                BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
-                String jsonText = readAll(rd);
-                JSONArray json = new JSONArray(jsonText);
-                return json;
-            } finally {
-                is.close();
+            if (container2 instanceof BookDetails)
+                bookDetailsFragment = (BookDetails) container2;
+            else {
+                bookDetailsFragment = new BookDetails();
+                fm
+                        .beginTransaction()
+                        .add(R.id.container_2, bookDetailsFragment)
+                        .commit();
             }
         }
 
-        @Override
-        protected JSONObject doInBackground(String... strings) {
-            return null;
-        }
+        bookDetailsFragment = (BookDetails) container2;
     }
 
-    private static String readAll(Reader rd) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        int cp;
-        while ((cp = rd.read()) != -1) {
-            sb.append((char) cp);
-        }
-        return sb.toString();
+    private void updateBooks() {
+        ((Displayable) container1).setBooks(library);
     }
 
-
-
-    static ArrayList<Book> b;
-   static Book bk =new Book();
-    public void separatesURLData() throws IOException, JSONException {
-
-        RetrieveFeedTask rt = new RetrieveFeedTask();
-
-        JSONArray json = rt.readJsonFromUrl("https://kamorris.com/lab/audlib/booksearch.php");
-
-        Parcel parcel=null;
-
-
-
-        for(int i=0;i< json.length();i++){
-            JSONObject o=json.getJSONObject(i);
-            b.add(bk.setObject(o));
-
-
-        }
-
-
-
-
-    }
-
-
-
-
-    public void bookSelected(int i) {
-
+    @Override
+    public void bookSelected(Book book) {
         if (bookDetailsFragment != null)
-            bookDetailsFragment.changeBook(b.get(i));
+            bookDetailsFragment.changeBook(book);
+    }
+
+    private boolean isNetworkActive() {
+        ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
+    }
+
+    private final String SEARCH_URL = "https://kamorris.com/lab/audlib/booksearch.php?search=";
+
+    Handler bookHandler = new Handler(new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message message) {
+            try {
+                library.clear();
+                JSONArray booksArray = new JSONArray((String) message.obj);
+                for (int i = 0; i < booksArray.length(); i++) {
+                    library.addBook(new Book(booksArray.getJSONObject(i)));
+                }
+
+                if(fm.findFragmentById(R.id.container_1) == null)
+                    setDisplay();
+                else
+                    updateBooks();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }
+    });
+
+    private void fetchBooks(final String searchString) {
+        new Thread() {
+            @Override
+            public void run() {
+                if (isNetworkActive()) {
+
+                    URL url;
+
+                    try {
+                        url = new URL(SEARCH_URL + (searchString != null ? searchString : ""));
+                        BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(
+                                        url.openStream()));
+
+                        StringBuilder response = new StringBuilder();
+                        String tmpResponse;
+
+                        while ((tmpResponse = reader.readLine()) != null) {
+                            response.append(tmpResponse);
+                        }
+
+                        Message msg = Message.obtain();
+
+                        msg.obj = response.toString();
+
+                        Log.d("Books RECEIVED", response.toString());
+
+                        bookHandler.sendMessage(msg);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                } else {
+                    Log.e("Network Error", "Cannot download books");
+                }
+            }
+        }.start();
     }
 
 
 
-    public void bookSelected() {
-
-    }
 }
-

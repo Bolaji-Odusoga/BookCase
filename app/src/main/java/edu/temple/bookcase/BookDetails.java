@@ -18,8 +18,9 @@ public class BookDetails extends Fragment {
     private Book book;
 
     ImageView imageView;
-    Parcelable[] bookObjects;
+    Parcelable bookObjects;
     TextView textView;
+    TextView authorText;
 
     public BookDetails() {}
 
@@ -36,7 +37,7 @@ public class BookDetails extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            bookObjects = getArguments().getParcelableArray(BOOK_KEY);
+            bookObjects = getArguments().getParcelable(BOOK_KEY);
         }
     }
 
@@ -45,7 +46,7 @@ public class BookDetails extends Fragment {
                              Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_book_details, container, false);
         imageView = v.findViewById(R.id.container_2);
-
+        authorText= v.findViewById(R.id.authorTextView);
          textView = v.findViewById(R.id.titleTextView);
         if (book != null) {
             changeBook(book);
@@ -56,9 +57,10 @@ public class BookDetails extends Fragment {
 
     public void changeBook(Book b) {
 
+        textView.setText(book.getTitle());
+        authorText.setText(book.getAuthor());
         Picasso.get().load(b.coverURL).into(imageView);
-        String t= b.title +"/n"+b.author+"/n"+b.published;
-        textView.setText(t);
+
 
     }
 
