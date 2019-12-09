@@ -1,21 +1,14 @@
 <resources>
     <string name="app_name">BookCase</string>
-
-    <string-array name="arrayList">
-        <item>"Don Quixote"</item>
-        <item>"The Great Gatsby"</item>
-        <item>"Moby Dick"</item>
-        <item>"War and Peace"</item>
-        <item>"Hamlet"</item>
-        <item>"The Odyssey"</item>
-        <item>"The Catcher in the Rye"</item>
-        <item>"Pride and Prejudice"</item>
-        <item>"Catch-22"</item>
-        <item>"Gulliver's Travels"</item>
-    </string-array>
+    <string name="now_playing">Now Playing: %1$s</string>
+    <string name="nothing_playing">Nothing Playing</string>
+    <string name="DownloadOrDelete">DOWNLOAD</string>
 
     <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-
-
+    <string-array name="book_titles">
+        <item>The Theory of Everything</item>
+        <item>Hyperspace</item>
+        <item>A Brief History of Time</item>
+        <item>Future Weapons</item>
+    </string-array>
 </resources>

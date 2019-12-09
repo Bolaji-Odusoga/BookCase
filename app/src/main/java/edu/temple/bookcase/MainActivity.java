@@ -1,14 +1,22 @@
 package edu.temple.bookcase;
 
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Bundle;
+import android.net.Uri;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
+import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
-
+import android.widget.SeekBar;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -18,97 +26,177 @@ import org.json.JSONArray;
 import org.json.JSONException;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.net.URL;
 
+import edu.temple.audiobookplayer.AudiobookService;
 
-public class MainActivity extends AppCompatActivity implements BookListFragment.BookSelectedInterface {
+public class MainActivity extends AppCompatActivity implements BookListFragment.BookSelectedInterface, BookDetailsFragment.MediaControlInterface {
 
+    String savedSearch;
     FragmentManager fm;
-    BookDetails bookDetailsFragment;
-    boolean singlePane;
+    BookDetailsFragment bookDetailsFragment;
+    Book currentBook;
+    TextView nowPlayingTextView;
+    boolean onePane;
     Library library;
-    Fragment container1;
-        Fragment container2;
+    Fragment current1, current2;
+    Intent serviceIntent;
+    AudiobookService.MediaControlBinder mediaControlBinder;
+    boolean connected;
 
+    SeekBar bookProgressSeekBar;
+
+    private final String SEARCH_URL = "https://kamorris.com/lab/audlib/booksearch.php?search=";
+
+    ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            mediaControlBinder = (AudiobookService.MediaControlBinder) iBinder;
+            mediaControlBinder.setProgressHandler(progressHandler);
+            connected = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            connected = false;
+        }
+    };
+
+    // Handler to receive downloaded books
+    Handler bookHandler = new Handler(new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message message) {
+            try {
+                library.clear();
+                JSONArray booksArray = new JSONArray((String) message.obj);
+                for (int i = 0; i < booksArray.length(); i++) {
+                    library.addBook(new Book(booksArray.getJSONObject(i)));
+                }
+
+                if(fm.findFragmentById(R.id.container_1) == null)
+                    setUpDisplay();
+                else
+                    updateBooks();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }
+    });
+
+    //Handler to receive book progress updates
+    Handler progressHandler = new Handler(new Handler.Callback() {
+
+        @Override
+        public boolean handleMessage(Message message) {
+
+            if (message.obj != null) {
+                currentBook = library.getBookWithId(((AudiobookService.BookProgress) message.obj).getBookId());
+                int progress = ((AudiobookService.BookProgress) message.obj).getProgress();
+                bookProgressSeekBar.setProgress((int) ((float) progress / currentBook.getDuration() * bookProgressSeekBar.getMax()));
+            } else {
+                bookProgressSeekBar.setProgress(0);
+            }
+            return true;
+        }
+    });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        serviceIntent = new Intent (this, AudiobookService.class);
+        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE);
+
         fm = getSupportFragmentManager();
         library = new Library();
 
         // Check for fragments in both containers
-        container1 = fm.findFragmentById(R.id.container_1);
-        container2 = fm.findFragmentById(R.id.container_2);
+        current1 = fm.findFragmentById(R.id.container_1);
+        current2 = fm.findFragmentById(R.id.container_2);
 
-        singlePane = findViewById(R.id.container_2) == null;
+        onePane = findViewById(R.id.container_2) == null;
 
-        if (container1 == null) {
+        if (current1 == null) {
             fetchBooks(null);
         } else {
             updateDisplay();
         }
 
         findViewById(R.id.searchButton).setOnClickListener(v -> fetchBooks(((EditText) findViewById(R.id.searchBox)).getText().toString()));
+        findViewById(R.id.pauseButton).setOnClickListener(v -> pause());
+        findViewById(R.id.stopButton).setOnClickListener(v -> stop());
+        bookProgressSeekBar = findViewById(R.id.bookProgressSeekBar);
+        bookProgressSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean byUser) {
+                if (byUser && connected) {
+                    mediaControlBinder.seekTo((int) (((float) i / seekBar.getMax()) * currentBook.getDuration()));
+                }
+
+
+            }
+
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+
+
+
+        });
+
     }
-    private void setDisplay() {
+
+    private void setUpDisplay() {
         // If there are no fragments at all (first time starting activity)
 
-        if (singlePane) {
-            container1 = ViewPage.newInstance(library);
-            fm.beginTransaction()
-                    .add(R.id.container_1, container1)
-                    .commit();
+        if (onePane) {
+            current1 = ViewPagerFragment.newInstance(library);
+            fm.beginTransaction().add(R.id.container_1, current1).commit();
         } else {
-            container1 = BookListFragment.newInstance(library);
-            bookDetailsFragment = new BookDetails();
-            fm.beginTransaction()
-                    .add(R.id.container_1, container1)
-                    .add(R.id.container_2, bookDetailsFragment)
-                    .commit();
+            current1 = BookListFragment.newInstance(library);
+            bookDetailsFragment = new BookDetailsFragment();
+            fm.beginTransaction().add(R.id.container_1, current1).add(R.id.container_2, bookDetailsFragment).commit();
         }
 
     }
 
     private void updateDisplay () {
-        Fragment tmpFragment = container1;;
-        library = ((Displayable) container1).getBooks();
-        if (singlePane) {
-            if (container1 instanceof BookListFragment) {
-                container1 = ViewPage.newInstance(library);
+        Fragment tmpFragment = current1;
+        library = ((Displayable) current1).getBooks();
+        if (onePane) {
+            if (current1 instanceof BookListFragment) {
+                current1 = ViewPagerFragment.newInstance(library);
                 // If we have the wrong fragment for this configuration, remove it and add the correct one
-                fm.beginTransaction()
-                        .remove(tmpFragment)
-                        .add(R.id.container_1, container1)
-                        .commit();
+                fm.beginTransaction().remove(tmpFragment).add(R.id.container_1, current1).commit();
             }
         } else {
-            if (container1 instanceof ViewPage) {
-                container1 = BookListFragment.newInstance(library);
-                fm.beginTransaction()
-                        .remove(tmpFragment)
-                        .add(R.id.container_1, container1)
-                        .commit();
+            if (current1 instanceof ViewPagerFragment) {
+                current1 = BookListFragment.newInstance(library);
+                fm.beginTransaction().remove(tmpFragment).add(R.id.container_1, current1).commit();
             }
-            if (container2 instanceof BookDetails)
-                bookDetailsFragment = (BookDetails) container2;
+            if (current2 instanceof BookDetailsFragment)
+                bookDetailsFragment = (BookDetailsFragment) current2;
             else {
-                bookDetailsFragment = new BookDetails();
-                fm
-                        .beginTransaction()
-                        .add(R.id.container_2, bookDetailsFragment)
-                        .commit();
+                bookDetailsFragment = new BookDetailsFragment();
+                fm.beginTransaction().add(R.id.container_2, bookDetailsFragment).commit();
             }
         }
 
-        bookDetailsFragment = (BookDetails) container2;
+        bookDetailsFragment = (BookDetailsFragment) current2;
     }
 
     private void updateBooks() {
-        ((Displayable) container1).setBooks(library);
+        ((Displayable) current1).setBooks(library);
     }
 
     @Override
@@ -123,69 +211,80 @@ public class MainActivity extends AppCompatActivity implements BookListFragment.
         return networkInfo != null && networkInfo.isConnected();
     }
 
-    private final String SEARCH_URL = "https://kamorris.com/lab/audlib/booksearch.php?search=";
-
-    Handler bookHandler = new Handler(new Handler.Callback() {
-        @Override
-        public boolean handleMessage(Message message) {
-            try {
-                library.clear();
-                JSONArray booksArray = new JSONArray((String) message.obj);
-                for (int i = 0; i < booksArray.length(); i++) {
-                    library.addBook(new Book(booksArray.getJSONObject(i)));
-                }
-
-                if(fm.findFragmentById(R.id.container_1) == null)
-                    setDisplay();
-                else
-                    updateBooks();
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-            return true;
-        }
-    });
 
     private void fetchBooks(final String searchString) {
-        new Thread() {
-            @Override
-            public void run() {
-                if (isNetworkActive()) {
+        if (Thread.interrupted()) {
+            fetchBooks(savedSearch);
+        } else {
+            new Thread() {
+                @Override
+                public void run() {
+                    if (isNetworkActive()) {
 
-                    URL url;
+                        URL url;
 
-                    try {
-                        url = new URL(SEARCH_URL + (searchString != null ? searchString : ""));
-                        BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(
-                                        url.openStream()));
+                        try {
+                            url = new URL(SEARCH_URL + (searchString != null ? searchString : ""));
+                            savedSearch = searchString;
+                            BufferedReader reader = new BufferedReader(
+                                    new InputStreamReader(
+                                            url.openStream()));
 
-                        StringBuilder response = new StringBuilder();
-                        String tmpResponse;
+                            StringBuilder response = new StringBuilder();
+                            String tmpResponse;
 
-                        while ((tmpResponse = reader.readLine()) != null) {
-                            response.append(tmpResponse);
+                            while ((tmpResponse = reader.readLine()) != null) {
+                                response.append(tmpResponse);
+                            }
+
+                            Message msg = Message.obtain();
+
+                            msg.obj = response.toString();
+
+                            Log.d("Books RECEIVED", response.toString());
+
+                            bookHandler.sendMessage(msg);
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
 
-                        Message msg = Message.obtain();
-
-                        msg.obj = response.toString();
-
-                        Log.d("Books RECEIVED", response.toString());
-
-                        bookHandler.sendMessage(msg);
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    } else {
+                        Log.e("Network Error", "Cannot download books");
                     }
-
-                } else {
-                    Log.e("Network Error", "Cannot download books");
                 }
-            }
-        }.start();
+            }.start();
+
+
+        }
     }
 
+    @Override
+    public void play(int bookId) {
+        if (connected) {
+            currentBook = library.getBookWithId(bookId);
+            // Start service when playing to ensure the book
+            // plays continuously, even when activity restarts
+            startService(serviceIntent);
 
+            mediaControlBinder.play(bookId);
+        }
+    }
 
+    public void stop () {
+        mediaControlBinder.stop();
+        // Service will now stop once the activity unbinds
+        stopService(serviceIntent);
+    }
+
+    public void pause () {
+        mediaControlBinder.pause();
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(serviceConnection);
+    }
 }

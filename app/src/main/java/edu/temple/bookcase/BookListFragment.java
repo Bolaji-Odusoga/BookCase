@@ -2,7 +2,6 @@ package edu.temple.bookcase;
 
 import android.content.Context;
 import android.os.Bundle;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -55,7 +54,7 @@ public class BookListFragment extends Fragment implements Displayable {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View layout = inflater.inflate(R.layout.fragment_booklist, container, false);
+        View layout = inflater.inflate(R.layout.fragment_book_list, container, false);
         listView = layout.findViewById(R.id.listView);
         listView.setAdapter(new BookListAdapter((Context) parentActivity, bookList));
 
@@ -83,4 +82,5 @@ public class BookListFragment extends Fragment implements Displayable {
     interface BookSelectedInterface {
         void bookSelected(Book book);
     }
+
 }
